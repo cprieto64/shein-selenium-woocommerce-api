@@ -1,6 +1,3 @@
 # shein-selenium-woocommerce-api
 
-Selenium script that receives the product link, sizes and discount to apply, and scrapes all the information about the product, 
-translates the reviews and generates a name depending on the configured area (in this case Colombia), then evaluates if the product 
-has color and creates the JSON to then send it to the WooCommerce API and create the product, then pass on the size/color variations 
-and finish with the reviews.
+A Selenium script is utilized to receive a product link, sizes, and a discount to apply,scrapes all relevant information about the product, translates any reviews, and generates a name tailored to the specified region (in this case, Colombia). The script then evaluates whether the product has color and creates a JSON file to send to the WooCommerce API in order to create the product. After the creation of the product, the script also handles the size/color variations and finishes by adding the reviews.
