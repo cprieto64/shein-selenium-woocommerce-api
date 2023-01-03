@@ -12,8 +12,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 
-
-
 from deep_translator import GoogleTranslator
 from faker import Faker
 
@@ -48,7 +46,6 @@ def fakemail():
     email = f"{first_name}.{last_name}@{company}.{dns_org}".lower()
     
     return email
-
 
 def crear_producto(tallas, url, discount, gender):
     
@@ -143,24 +140,12 @@ def crear_producto(tallas, url, discount, gender):
 
 
         categoriashein = driver.find_elements("xpath", '//div[@class="bread-crumb__inner"]//div[@class="bread-crumb__item"][a or span]')
-        
-        sheincat = []
 
-        for cat in categoriashein:
-            categoria = cat.text
-            categoria = categoria.replace("&", "&amp;")
-            sheincat.append(categoria)
-        
+        sheincat = [cat.text.replace("&", "&amp;") for cat in categoriashein]
         sheincat = sheincat[1:-1]
 
         categories_to_remove = ['Hombre', 'Ropa de Mujer', 'Zapatos', 'Zapatos de Mujer']
-        for category in categories_to_remove:
-            if category in sheincat and category in categories_to_remove:
-                sheincat.remove(category)
-                print(f"Removido -> {category}")               
-            else:
-                pass
-
+        sheincat = [cat for cat in sheincat if cat not in categories_to_remove]
 
        
         raic_storecats = []
