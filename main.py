@@ -34,12 +34,32 @@ list_of_domains = (
 
 def fakemail():
 
+    """
+    Generate a fake email address using randomly generated components.
+    
+    Args:
+        None
+    
+    Returns:
+        str: A randomly generated email address in the format 'firstname.lastname@company.domain'.
+    """
     first_name = fake.first_name()    
     last_name = fake.last_name()    
     company = fake.company().split()[0].strip(',')
 
     dns_org = fake.random_choices(
         elements=list_of_domains,
+        """Creates a product in an e-commerce system based on provided details and scrapes additional information.
+        
+        Args:
+            tallas (list): List of available sizes for the product.
+            url (str): URL of the product page to scrape.
+            discount (str): Discount percentage to apply to the product price.
+            gender (str): Gender code for the product category ('1' for Women, '2' for Men, '5' for Women's Jewelry, '6' for Women's Footwear).
+        
+        Returns:
+            None: This function doesn't return a value, but it creates a product in the e-commerce system and prints status messages.
+        """
         length=1
     )[0]
     
