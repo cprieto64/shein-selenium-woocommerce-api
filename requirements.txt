@@ -1,0 +1,6 @@
+woocommerce
+python-dotenv
+selenium
+webdriver-manager
+deep-translator
+Faker

@@ -1,412 +1,218 @@
-import time
-from woocommerce import API
-from dotenv import load_dotenv
-import os
+from scraper import SheinScraper
+from woocommerce_manager import WooCommerceManager
+# No other imports like os, load_dotenv, time, API, selenium, GoogleTranslator, Faker, or utils are needed here.
 
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-
-
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service
-
-from deep_translator import GoogleTranslator
-from faker import Faker
-
-load_dotenv()
-
-fake = Faker()
-fakename = Faker('es_CO')
-
-
-list_of_domains = (
-    'com',
-    'com.br',
-    'net',
-    'net.br',
-    'org',
-    'org.br',
-    'gov',
-    'gov.br'
-)
-
-def fakemail():
-
+def crear_producto(tallas_list, product_url_shein, markup_percentage_str, gender_code_str):
     """
-    Generate a fake email address using randomly generated components.
-    
+    Orchestrates the creation of a product by scraping data from Shein and adding it to WooCommerce.
+
     Args:
-        None
-    
-    Returns:
-        str: A randomly generated email address in the format 'firstname.lastname@company.domain'.
+        tallas_list (list): List of available sizes for the product (e.g., ['S', 'M']).
+        product_url_shein (str): URL of the Shein product page.
+        markup_percentage_str (str): Markup percentage string (e.g., "20" for 20%).
+        gender_code_str (str): Gender code for product categorization.
     """
-    first_name = fake.first_name()    
-    last_name = fake.last_name()    
-    company = fake.company().split()[0].strip(',')
+    initial_category_ids = []
+    parent_category_id_for_shein_cats = 0
 
-    dns_org = fake.random_choices(
-        elements=list_of_domains,
-        """Creates a product in an e-commerce system based on provided details and scrapes additional information.
-        
-        Args:
-            tallas (list): List of available sizes for the product.
-            url (str): URL of the product page to scrape.
-            discount (str): Discount percentage to apply to the product price.
-            gender (str): Gender code for the product category ('1' for Women, '2' for Men, '5' for Women's Jewelry, '6' for Women's Footwear).
-        
-        Returns:
-            None: This function doesn't return a value, but it creates a product in the e-commerce system and prints status messages.
-        """
-        length=1
-    )[0]
-    
-    email = f"{first_name}.{last_name}@{company}.{dns_org}".lower()
-    
-    return email
+    # Define initial WooCommerce categories and parent for Shein categories based on gender_code_str
+    if gender_code_str == "2":  # Hombre
+        print(f"Processing for 'Hombre' (Men): {gender_code_str}")
+        initial_category_ids = [{"id": 184}, {"id": 200}]  # Ropa, Ropa Hombre
+        parent_category_id_for_shein_cats = 200
+    elif gender_code_str == "1":  # Mujer
+        print(f"Processing for 'Mujer' (Women): {gender_code_str}")
+        initial_category_ids = [{"id": 183}, {"id": 145}]  # Ropa, Ropa Mujer
+        parent_category_id_for_shein_cats = 145
+    elif gender_code_str == "5":  # Mujer Joyas
+        print(f"Processing for 'Mujer Joyas' (Women's Jewelry): {gender_code_str}")
+        initial_category_ids = [{"id": 183}, {"id": 298}]  # Ropa, Joyeria y Bisuteria
+        parent_category_id_for_shein_cats = 298
+    elif gender_code_str == "6":  # Mujer Calzado
+        print(f"Processing for 'Mujer Calzado' (Women's Footwear): {gender_code_str}")
+        initial_category_ids = [{"id": 183}, {"id": 243}]  # Ropa, Zapatos Mujer
+        parent_category_id_for_shein_cats = 243
+    else:
+        print(f"Warning: Gender code {gender_code_str} not recognized. Using default 'Uncategorized'.")
+        initial_category_ids = [{"id": 15}] # 'Uncategorized'
+        parent_category_id_for_shein_cats = 0 # No parent
 
-def crear_producto(tallas, url, discount, gender):
-    
-    if gender == "2": #
-        print(f"El gender es Hombre: {gender}")
-        dynamicat_list = [{"id": 184},{"id": 200},]
-        dynamic_parent = 200
-    elif gender == "1":
-        print(f"El gender es Mujer: {gender}")
-        dynamicat_list = [{"id": 183},{"id": 145}]
-        dynamic_parent = 145
-    elif gender == "5":
-        print(f"El gender es Mujer Joyas: {gender}")
-        dynamicat_list = [{"id": 183},{"id": 145}]
-        dynamic_parent = 145
-    elif gender == "6":
-        print(f"El gender es Mujer Calzado: {gender}")
-        dynamicat_list = [{"id": 183},{"id": 243}]
-        dynamic_parent = 234
-        
+    scraper_instance = SheinScraper()
+    woo_commerce_manager_instance = WooCommerceManager()
 
-    print("####################### \n  INITIALIZED SCRAPER    \n#######################")
-
-    time.sleep(5)
-
-    wcapi = API(
-    url="https://pjwaterfilters.com/",
-    consumer_key=os.environ["CONSUMER_KEY"],
-    consumer_secret=os.environ["CONSUMER_SECRET"],
-    wp_api=True,
-    version="wc/v3",
-    timeout=60
-)
-
-    options = webdriver.ChromeOptions()
-
-
-    options.add_argument("--disable-extensions")
-    options.add_argument("--proxy-server='direct://'")
-    options.add_argument("--proxy-bypass-list=*")
-    options.add_argument("--start-maximized")
-    
-    options.add_argument("--lang=es")
-
-    options.add_argument('log-level=3')
-    options.add_experimental_option("excludeSwitches", ["enable-logging"])
-
-    options.add_argument('--start-maximized')
-
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),options=options)
-
-
-
-    driver.set_page_load_timeout(120)
-
-    driver.get(url)
-    print("Going into:", url) 
-    time.sleep(2)
-
-   
-    time.sleep(2)
     try:
-        print("Cerrando Pop Up")
-        time.sleep(2)
+        print("####################### \n  INITIALIZING SCRAPER    \n#######################")
+        scraper_instance.load_page(product_url_shein)
+        scraper_instance.close_popup_if_present()
         
-        popup = driver.find_elements("xpath", '//div[@class="c-coupon-box"]//i')
-        
-        
-        if popup: 
-            popup.click()
-             
-        time.sleep(2)
+        scraped_product_data = scraper_instance.extract_product_details()
 
-        product_name = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//div[@class="product-intro__info"]//h1'))).text
-        print(f"Nombre del producto: {product_name}")
-        time.sleep(2)
-        sku = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//div[@class="product-intro__head-sku"]'))).text    
+        if not scraped_product_data or not scraped_product_data.get("product_name") or scraped_product_data.get("shein_price") is None:
+            print("Error: Could not extract essential product data from Shein. Aborting process.")
+            return
 
-        sku = sku.strip()
+        product_name_shein = scraped_product_data["product_name"]
+        print(f"Successfully scraped product: {product_name_shein}")
 
-        sku = sku.split("SKU: ")[1]
-
-        raicsku = f"{sku}-raic-"
-
-        precioshein = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//div[@class="product-intro__head-price j-expose__product-intro__head-price"]/div[1]//span'))).text
-        precioshein = float(precioshein.replace('$', ''))
-        print(f"Precio Shein: {precioshein}")
-        porcentaje_descuento = int(discount) / 100
-        precio = str(precioshein - (precioshein * porcentaje_descuento))
-        print(f"Precio tienda: {precio}")
-        time.sleep(2)
-
-
-        categoriashein = driver.find_elements("xpath", '//div[@class="bread-crumb__inner"]//div[@class="bread-crumb__item"][a or span]')
-
-        sheincat = [cat.text.replace("&", "&amp;") for cat in categoriashein]
-        sheincat = sheincat[1:-1]
-
-        categories_to_remove = ['Hombre', 'Ropa de Mujer', 'Zapatos', 'Zapatos de Mujer']
-        sheincat = [cat for cat in sheincat if cat not in categories_to_remove]
-
-       
-        raic_storecats = []
-
-        imagenes = driver.find_element("xpath", '//div[@class="product-intro__thumbs-inner"]')
-
-        divimgages = imagenes.find_elements("xpath", './/div[@class="product-intro__thumbs-item" or "product-intro__thumbs-inner"]')
-
-        images = []
-        
-        for i in divimgages:   
-            imagenen = i.find_element("xpath", './/img')        
-            img_url = imagenen.get_attribute('src')
-            img_url = img_url.split('_thumbnail_')[0]
-            img_url = f"https:{img_url}.webp"
-            images.append(img_url)
-            time.sleep(2)            
-
-        featuredimg = images[0]    
-       
-        url_imgs = []
-
-        for url in images:
-            if ".webp.webp" in url:
-                url_imgs.remove(url)
-                print("He removido una url de la lista porque tenia webp repetido")
-        
-        print(f"Lista de URL de imagenes: {images}")
-
-        for link in images:
-            url_imgs.append({"src": link})
-
-        elicono = driver.find_element("xpath", '//div[@class="product-intro__description"]//i')
-        elicono.click() 
-
-
-        time.sleep(5)
-        
-        descriptions = driver.find_element("xpath", '//div[@class="product-intro__description"]//div[@class="product-intro__description-table"]')
-        
-        description = descriptions.find_elements("xpath", './/div[@class="product-intro__description-table-item"]')
-
-        string_description = ""  
-
-        last_iteration = False
-
-        for i, desc in enumerate(description):
-            if i == len(description) - 1:
-                last_iteration = True
-            key = desc.find_element("xpath", './/div[@class="key"]')
-            value =  desc.find_element("xpath", './/div[@class="val"]')
-            key = key.text
-            value = value.text
-            string_description += key + " " 
-            string_description += value
-            if not last_iteration:
-                string_description += "\n"
-                
-        print(f"Descripcion: {string_description}")
-        time.sleep(1)
-
+        # Calculate final product price with markup
         try:
-            color = driver.find_element("xpath", '//div[@class="product-intro__color j-expose__product-intro__color"]/div/span/span').text
-            print(f"Color: {color}") 
-        except:
-            color = False
-            print(f"Color: {color}")
-         
-            
-        reviews = driver.find_element("xpath", '//div[@class="common-reviews__list j-expose__common-reviews__list"]')
+            markup_percentage = int(markup_percentage_str)
+            shein_base_price = float(scraped_product_data["shein_price"])
+            # The term "discount" in the original script was actually used as a markup.
+            # If discount_percentage is e.g. 20, it means 20% markup.
+            final_product_price_calculated = shein_base_price * (1 + markup_percentage / 100)
+            final_product_price_str = str(round(final_product_price_calculated, 2))
+            print(f"Shein Price: {shein_base_price}, Markup: {markup_percentage}%, Final Store Price: {final_product_price_str}")
+        except ValueError:
+            print(f"Error: Invalid markup percentage '{markup_percentage_str}'. Using Shein price without changes.")
+            final_product_price_str = str(scraped_product_data["shein_price"])
 
-        review = reviews.find_elements("xpath", './/div[@class="j-expose__common-reviews__list-item"]')
+        translated_product_reviews = scraper_instance.extract_and_translate_reviews()
+        print(f"Extracted and translated {len(translated_product_reviews)} reviews.")
+
+        print("\n####################### \n  PROCESSING WOOCOMMERCE    \n#######################")
         
-        time.sleep(2)
+        # Get or create product categories in WooCommerce
+        product_category_ids_wc = woo_commerce_manager_instance.get_or_create_categories(
+            shein_categories=scraped_product_data.get('shein_categories', []), 
+            dynamic_parent_id=parent_category_id_for_shein_cats, 
+            initial_category_ids=initial_category_ids
+        )
+        print(f"Final category IDs for WooCommerce product: {product_category_ids_wc}")
 
-        review_shein_esp = []
-        
-        for rev in review:
-            print("Leyendo cada review")                   
-            rate_desc = rev.find_element("xpath", './/div[@class="rate-des"]')
-            rate_desc = rate_desc.text
-            print(f"Texto Original: {rate_desc}")
-            print("Traduciendo....")
-            time.sleep(5)
-            review_translated = GoogleTranslator(source='auto', target='es').translate(rate_desc)
-            review_shein_esp.append(review_translated)
-            print(f"Traducida: {review_translated}")
-            time.sleep(5)
-        
-        cat_list = dynamicat_list
-        
-        categories = wcapi.get("products/categories", params={"per_page": 100}).json()
-
-        for category in categories:
-            name = category["name"]
-            raic_storecats.append(name)
-
-            if name in sheincat:                
-                print(f"{name} - Si esta")
-                catid = int(category["id"])
-                cat_list.append({"id": catid})
-                 
-        for i, item in enumerate(sheincat):
-            categories_for = wcapi.get("products/categories", params={"per_page": 100}).json()
-            if item not in raic_storecats:                
-                print(f"{item} no está en raic_storecats, posicion {i}.")
-
-                if i != 0:
-                    position_in_sheincat = i-1
-                    
-                    parent_name = sheincat[position_in_sheincat]
-
-                    for category in categories_for:                               
-                        if category["name"] == parent_name:  
-                            parent = category['id']
-                            print(f"El id de {parent_name} es: {parent}")
-                            
-                            data = {
-                                'name': item,
-                                'parent': parent
-                            }
-
-                            create_cat = wcapi.post("products/categories", data).json()
-
-                            cat_created_id = create_cat["id"]
-                            cat_list.append({"id": cat_created_id})
-                            print(f"- Creada la categoria {item}")
-                            time.sleep(3)
-                            break  
-                else: 
-                    data = {
-                            'name': item,
-                            'parent': dynamic_parent
-                        }
-                    create_cat = wcapi.post("products/categories", data).json()
-                    cat_created_id = create_cat["id"]
-
-                    cat_list.append({"id": cat_created_id})
-                    print(f"- Creada la categoria {item}")
-                    time.sleep(3)
-        
-        print(f'IDs categorias a agregar al JSON: {cat_list}')
-
-        attributes = [
+        # Prepare product attributes for WooCommerce
+        product_attributes_wc = [
             {
-                "id": 7,
+                "id": woo_commerce_manager_instance.attr_id_size, # Using ID from WooCommerceManager
+                "name": "Talla", # Name of the attribute as it should appear in WC
                 "visible": True,
                 "variation": True,
-                "options": tallas,
+                "options": tallas_list,
             },
         ]
-
-        if color:
-            attributes.append(
+        product_color_shein = scraped_product_data.get("color")
+        if product_color_shein:
+            product_attributes_wc.append(
                 {
-                    "id": 8,
+                    "id": woo_commerce_manager_instance.attr_id_color, # Using ID from WooCommerceManager
+                    "name": "Color", # Name of the attribute
                     "visible": True,
                     "variation": True,
-                    "options": [color],
+                    "options": [product_color_shein],
                 }
             )
-
-        variable_product_data = {
-            "name": product_name,
-            "type": "variable",
-            "short_description": string_description,
-            "description": string_description,
-            "categories": categories,
-            "images": url_imgs,
-            "attributes": attributes,
-        }
-
-        print("Creando el producto, esto puede tardar unos 60 segundos...")
-        response = wcapi.post("products", variable_product_data).json()
-        id = response["id"]
-        product_url = response["permalink"]
-
-        print("Creando las variaciones talla/color")
-        for talla in tallas:
-            print(f"Talla a crear: {talla}")
-            time.sleep(3)
-
-            talla_sku = talla.replace(" ", "").lower()
-            if color:
-                color_sku = color.replace(" ", "").lower()
-                sku_variation = f"{raicsku}{color_sku}{talla_sku}"
-                attributes_variation = [
-                    {"id": 8, "option": color},
-                    {"id": 7, "option": talla},
-                ]
-            else:
-                sku_variation = f"{raicsku}colorunico{talla_sku}"
-                attributes_variation = [
-                    {"id": 7, "option": talla},
-                ]
-
-            product_variation_data = {
-                "regular_price": precio,
-                "stock_quantity": 10,
-                "sku": sku_variation,
-                "image": {"src": featuredimg},
-                "attributes": attributes_variation,
-            }
-
-            print(product_variation_data)
-            response = wcapi.post(f"products/{id}/variations", product_variation_data)
-   
-        print("Agregando Reviews")
-        for review in review_shein_esp:
-            if gender == "1" or "4" or "6": # female or beauty or calzado de mujer
-                reviewername = fakename.first_name_female()
-            elif gender == "2": # male
-                reviewername = fakename.first_name_male()
-            elif gender == "3": # kids
-                reviewername = fakename.first_name()
-
-            datareview = {
-            "product_id": id,
-            "review": review,
-            "reviewer":reviewername,
-            "reviewer_email": fakemail(),
-            "rating": 5,
-            }
-            
-            wcapi.post("products/reviews", datareview).json()
-            time.sleep(2)
         
-        print(product_url)
-        print("Done, producto agregado a la tienda")
+        # Create the variable product in WooCommerce
+        created_wc_product_info = woo_commerce_manager_instance.create_variable_product(
+            name=product_name_shein,
+            short_description=scraped_product_data.get("description", ""), # Using full description as short as well
+            description=scraped_product_data.get("description", ""),
+            category_ids=product_category_ids_wc,
+            image_urls=scraped_product_data.get("image_urls", []),
+            attributes_data=product_attributes_wc
+        )
+
+        if not created_wc_product_info or "id" not in created_wc_product_info:
+            print("Error: Failed to create variable product in WooCommerce. Aborting.")
+            return
+        
+        wc_product_id = created_wc_product_info["id"]
+        wc_product_url = created_wc_product_info.get("permalink", "N/A")
+        print(f"Variable product created successfully in WooCommerce. ID: {wc_product_id}, URL: {wc_product_url}")
+
+        # Create product variations in WooCommerce
+        base_product_sku = scraped_product_data.get("sku", "RAICSKU") # Default SKU if not found
+        # Use the first image as the featured image for variations, if available
+        featured_product_image = None
+        if scraped_product_data.get("image_urls"):
+            featured_product_image = scraped_product_data["image_urls"][0]
+        
+        variations_successfully_created = woo_commerce_manager_instance.create_product_variations(
+            product_id=wc_product_id,
+            base_sku=base_product_sku,
+            price=final_product_price_str,
+            sizes=tallas_list,
+            featured_image_url=featured_product_image,
+            color=product_color_shein
+        )
+        if variations_successfully_created:
+            print("Product variations created successfully.")
+        else:
+            print("Warning: No product variations were created, or an error occurred during variation creation.")
+
+        # Add reviews to the product in WooCommerce
+        if translated_product_reviews:
+            reviews_added_count = woo_commerce_manager_instance.add_reviews(
+                product_id=wc_product_id,
+                reviews_text=translated_product_reviews,
+                gender_code=gender_code_str # Pass gender_code for fake name generation
+            )
+            print(f"{reviews_added_count} reviews added to the product in WooCommerce.")
+        else:
+            print("No reviews to add for this product.")
+
+        print(f"\nProduct creation process complete! View product at: {wc_product_url}")
 
     except Exception as e:
-        print(e)
-        driver.quit()    
+        print(f"An unexpected error occurred in the main product creation process: {e}")
+        import traceback
+        traceback.print_exc() # Print full traceback for debugging
 
-    driver.quit()
-    print("####################### \n  SCRAPER FINISHED    \n#######################")
+    finally:
+        if 'scraper_instance' in locals() and scraper_instance: # Ensure scraper_instance was initialized
+            scraper_instance.quit_driver()
+        print("####################### \n  PROCESS FINISHED    \n#######################")
 
 
-url = input("Ingresa la URL de shein: ")
-tallas = input("Ingrese las tallas separadas por comas sin espacios (ej: S,M,XL ej dos: M): ").split(",")
-discount = input("Ingresa el descuento del producto sin el simbolo ej 20: ")
-gender = input("Es Mujer(1), Hombre(2), Niños(3), Belleza(4),  Mujer Joyas (5), Mujer Calazado(6), Hombre Joyas(7), Hombre Calzado(8): ")
+if __name__ == "__main__":
+    print("--- Shein to WooCommerce Product Importer ---")
+    
+    shein_url_input = input("Ingresa la URL de Shein: ")
+    
+    # Get Tallas (Sizes)
+    while True:
+        sizes_input_str = input("Ingrese las tallas separadas por comas, sin espacios (ej: S,M,XL o M si es única): ")
+        if sizes_input_str.strip(): # Check if input is not empty
+            product_sizes_list = [size.strip().upper() for size in sizes_input_str.split(",")]
+            break
+        else:
+            print("Error: Las tallas no pueden estar vacías. Por favor, ingrese al menos una talla.")
+            
+    # Get Markup Percentage (formerly discount)
+    while True:
+        markup_input_str = input("Ingresa el porcentaje de GANANCIA deseado sobre el precio de Shein (ej: 20 para 20%): ")
+        if markup_input_str.strip().isdigit(): # Basic validation for digits
+            break
+        else:
+            print("Error: El porcentaje de ganancia debe ser un número entero positivo (ej: 20).")
+            
+    # Get Gender Code
+    gender_category_options = {
+        "1": "Mujer", "2": "Hombre", "3": "Niños (No implementado completamente)", 
+        "4": "Belleza (No implementado completamente)", "5": "Mujer Joyas", "6": "Mujer Calzado", 
+        "7": "Hombre Joyas (No implementado completamente)", "8": "Hombre Calzado (No implementado completamente)"
+    }
+    print("\nSeleccione el género/categoría principal del producto:")
+    for code, description in gender_category_options.items():
+        print(f"{code}: {description}")
+    
+    while True:
+        gender_selection_str = input(f"Opción ({'/'.join(gender_category_options.keys())}): ")
+        if gender_selection_str in gender_category_options:
+            break
+        else:
+            print("Error: Opción no válida. Por favor, elija un número de la lista.")
 
-crear_producto(tallas, url, discount, gender)
+    print(f"\n--- Iniciando Creación de Producto ---")
+    print(f"URL: {shein_url_input}")
+    print(f"Tallas: {product_sizes_list}")
+    print(f"Ganancia: {markup_input_str}%") # Changed from "Descuento" to "Ganancia"
+    print(f"Categoría Principal (Código): {gender_selection_str}")
+    
+    # Call the main orchestrator function
+    crear_producto(
+        tallas_list=product_sizes_list, 
+        product_url_shein=shein_url_input, 
+        markup_percentage_str=markup_input_str, # Pass as string, convert inside function
+        gender_code_str=gender_selection_str
+    )
